@@ -30,35 +30,42 @@ class MetricFlowAdapter(BaseSemanticAdapter):
         super().__init__(config, service_type="metricflow")
         self.namespace = config.namespace
         self.timeout = config.timeout
+        self._client: Optional[MetricFlowClient] = None
 
         logger.info(f"Initializing MetricFlowAdapter for namespace: {self.namespace}")
 
-        try:
-            # Import MetricFlow utilities
-            from metricflow.configuration.constants import CONFIG_DWH_SCHEMA
-            from metricflow.engine.utils import build_user_configured_model_from_config
-            from metricflow.sql_clients.sql_utils import make_sql_client_from_config
+        # Only initialize config handler, defer client creation to lazy load
+        config_path = getattr(config, 'config_path', None)
+        self._config_handler = DatusConfigHandler(namespace=self.namespace, config_path=config_path)
+        logger.info("MetricFlowAdapter initialized (client will be created on first use)")
 
-            # Initialize MetricFlow client using DatusConfigHandler
-            config_path = getattr(config, 'config_path', None)
-            self._config_handler = DatusConfigHandler(namespace=self.namespace, config_path=config_path)
+    @property
+    def client(self) -> MetricFlowClient:
+        """Lazy load MetricFlowClient when first accessed."""
+        if self._client is None:
+            try:
+                from metricflow.configuration.constants import CONFIG_DWH_SCHEMA
+                from metricflow.engine.utils import build_user_configured_model_from_config
+                from metricflow.sql_clients.sql_utils import make_sql_client_from_config
 
-            # Build client components using the config handler
-            sql_client = make_sql_client_from_config(self._config_handler)
-            user_configured_model = build_user_configured_model_from_config(self._config_handler)
-            schema = self._config_handler.get_value(CONFIG_DWH_SCHEMA)
+                # Build client components using the config handler
+                sql_client = make_sql_client_from_config(self._config_handler)
+                user_configured_model = build_user_configured_model_from_config(self._config_handler)
+                schema = self._config_handler.get_value(CONFIG_DWH_SCHEMA)
 
-            # Construct MetricFlowClient directly
-            self.client = MetricFlowClient(
-                sql_client=sql_client,
-                user_configured_model=user_configured_model,
-                system_schema=schema,
-            )
-            logger.info("MetricFlowClient initialized successfully")
+                # Construct MetricFlowClient directly
+                self._client = MetricFlowClient(
+                    sql_client=sql_client,
+                    user_configured_model=user_configured_model,
+                    system_schema=schema,
+                )
+                logger.info("MetricFlowClient initialized successfully")
 
-        except Exception as e:
-            logger.error(f"Failed to initialize MetricFlowAdapter: {e}", exc_info=True)
-            raise
+            except Exception as e:
+                logger.error(f"Failed to initialize MetricFlowClient: {e}", exc_info=True)
+                raise
+
+        return self._client
 
     # Semantic Model Interface
 
