@@ -86,8 +86,7 @@ class MetricFlowAdapter(BaseSemanticAdapter):
     def _resolve_model_path(config: MetricFlowConfig) -> str:
         """Resolve semantic models path from config."""
         import pathlib
-        agent_home = config.agent_home or "~/.datus"
-        return str(pathlib.Path(agent_home).expanduser().resolve() / "semantic_models" / config.namespace)
+        return str(pathlib.Path(config.semantic_models_path).expanduser().resolve())
 
     # Semantic Model Interface
 

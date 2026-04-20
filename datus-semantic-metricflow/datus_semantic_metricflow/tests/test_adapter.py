@@ -33,7 +33,7 @@ def _validation_results(*, errors=None, warnings=None, has_blocking_issues=False
 
 @pytest.fixture
 def config():
-    return MetricFlowConfig(namespace="test", timeout=300)
+    return MetricFlowConfig(namespace="test", timeout=300, semantic_models_path="/tmp/models")
 
 
 @pytest.fixture
@@ -48,12 +48,12 @@ def adapter():
 
 
 class TestMetricFlowAdapter:
-    def test_resolve_model_path_uses_agent_home_and_namespace(self):
-        config = MetricFlowConfig(namespace="analytics", agent_home="/tmp/datus-home")
+    def test_resolve_model_path_uses_semantic_models_path(self):
+        config = MetricFlowConfig(namespace="analytics", semantic_models_path="/tmp/project/subject/semantic_models")
 
         result = MetricFlowAdapter._resolve_model_path(config)
 
-        assert result.endswith("/tmp/datus-home/semantic_models/analytics")
+        assert result.endswith("/tmp/project/subject/semantic_models")
 
     def test_init_uses_dict_config_handler_when_db_config_present(self):
         mock_handler = MagicMock()
@@ -75,7 +75,7 @@ class TestMetricFlowAdapter:
                 MetricFlowConfig(
                     namespace="test",
                     db_config={"type": "duckdb", "database": "demo"},
-                    agent_home="/tmp/home",
+                    semantic_models_path="/tmp/project/subject/semantic_models",
                 )
             )
 
@@ -98,7 +98,9 @@ class TestMetricFlowAdapter:
             patch("metricflow.engine.utils.build_user_configured_model_from_config", return_value=MagicMock()),
             patch("metricflow.configuration.constants.CONFIG_DWH_SCHEMA", "datus_system"),
         ):
-            adapter = MetricFlowAdapter(MetricFlowConfig(namespace="test", config_path="/tmp/agent.yml"))
+            adapter = MetricFlowAdapter(
+                MetricFlowConfig(namespace="test", config_path="/tmp/agent.yml", semantic_models_path="/tmp/models")
+            )
 
         mock_handler_cls.assert_called_once_with(namespace="test", config_path="/tmp/agent.yml")
         assert adapter.client is mock_client
@@ -289,14 +291,18 @@ class TestMetricFlowAdapter:
 
 class TestConfiguration:
     def test_config_defaults(self):
-        config = MetricFlowConfig(namespace="test")
+        config = MetricFlowConfig(namespace="test", semantic_models_path="/tmp/models")
 
         assert config.namespace == "test"
         assert config.service_type == "metricflow"
         assert config.config_path is None
         assert config.timeout == 300
         assert config.db_config is None
-        assert config.agent_home is None
+        assert config.semantic_models_path == "/tmp/models"
+
+    def test_config_requires_semantic_models_path(self):
+        with pytest.raises(Exception):
+            MetricFlowConfig(namespace="test")
 
     def test_config_custom_values(self):
         config = MetricFlowConfig(
@@ -304,11 +310,11 @@ class TestConfiguration:
             config_path="/tmp/agent.yml",
             timeout=600,
             db_config={"type": "postgres", "database": "analytics"},
-            agent_home="/tmp/datus-home",
+            semantic_models_path="/tmp/project/subject/semantic_models",
         )
 
         assert config.namespace == "prod"
         assert config.config_path == "/tmp/agent.yml"
         assert config.timeout == 600
         assert config.db_config == {"type": "postgres", "database": "analytics"}
-        assert config.agent_home == "/tmp/datus-home"
+        assert config.semantic_models_path == "/tmp/project/subject/semantic_models"

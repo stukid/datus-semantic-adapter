@@ -44,7 +44,7 @@ class TestSemanticAdapterRegistry:
 
     def test_create_adapter_uses_registered_metricflow_adapter(self):
         register()
-        config = MetricFlowConfig(namespace="test")
+        config = MetricFlowConfig(namespace="test", semantic_models_path="/tmp/models")
 
         with patch.object(MetricFlowAdapter, "__init__", return_value=None) as mock_init:
             adapter = semantic_adapter_registry.create_adapter("metricflow", config)
@@ -54,7 +54,9 @@ class TestSemanticAdapterRegistry:
 
     def test_create_adapter_unknown_type_raises_semantic_core_exception(self):
         with pytest.raises(SemanticCoreException, match="not found"):
-            semantic_adapter_registry.create_adapter("unknown_adapter", MetricFlowConfig(namespace="test"))
+            semantic_adapter_registry.create_adapter(
+                "unknown_adapter", MetricFlowConfig(namespace="test", semantic_models_path="/tmp/models")
+            )
 
     def test_get_metadata_unknown_returns_none(self):
         assert semantic_adapter_registry.get_metadata("unknown") is None
