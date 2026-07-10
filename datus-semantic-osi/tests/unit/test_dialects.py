@@ -39,3 +39,18 @@ def test_compile_parses_datasource_native_function_under_its_dialect():
     )
     assert metric.kind is MetricKind.AGGREGATE
     assert "FIND_IN_SET" in metric.measures[0].expr
+
+
+def test_adapter_dialect_uses_datasource_type_not_config_name(tmp_path):
+    # A snowflake source named "prod_wh" must resolve to snowflake, not the default.
+    from datus_semantic_osi.adapter import DatusOSIAdapter
+    from datus_semantic_osi.config import DatusOSIConfig
+
+    adapter = DatusOSIAdapter(
+        DatusOSIConfig(
+            semantic_models_path=str(tmp_path),
+            datasource="prod_wh",
+            db_config={"type": "snowflake"},
+        )
+    )
+    assert adapter._dialect == "snowflake"

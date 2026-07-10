@@ -133,7 +133,10 @@ class DatusOSIAdapter(BaseSemanticAdapter):
     def __init__(self, config: DatusOSIConfig):
         super().__init__(config, service_type="osi")
         self.config = config
-        self._dialect = resolve_sqlglot_dialect(config.datasource)
+        # config.datasource is the name; the dialect comes from its type in db_config.
+        db_config = getattr(config, "db_config", None)
+        datasource_type = db_config.get("type") if isinstance(db_config, dict) else None
+        self._dialect = resolve_sqlglot_dialect(datasource_type or config.datasource)
         self._backend = make_backend(
             config.execution_backend,
             generated_path=config.generated_path,
